@@ -159,7 +159,8 @@ const class Mailgun
   }
 
   **
-  ** Get a single unsubscribe record.
+  ** Get a single unsubscribe record. Returns response from Mailgun
+  ** if successful. Throws Err if fails for any reason.
   **
   ** See Mailgun documentation for unsubscribes:
   **
@@ -189,7 +190,8 @@ const class Mailgun
   }
 
   **
-  ** Add address to unsubscribe table.
+  ** Add address to unsubscribe table. Returns response from Mailgun
+  ** if successful. Throws Err if fails for any reason.
   **
   ** See Mailgun documentation for unsubscribes:
   **
@@ -219,7 +221,8 @@ const class Mailgun
   }
 
   **
-  ** Remove an address from unsubscribe table.
+  ** Remove an address from unsubscribe table. Returns response from
+  ** Mailgun if successful. Throws Err if fails for any reason.
   **
   ** See Mailgun documentation for unsubscribes:
   **
