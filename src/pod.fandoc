@@ -1,0 +1,52 @@
+**************************************************************************
+** title:      Mailgun
+** author:     Andy Frank
+** created:    12 Apr 2013
+** copyright:  Copyright (c) 2013, Andy Frank
+** license:    Licensed under the MIT License
+**************************************************************************
+
+Overview [#overview]
+********************
+
+Mailgun is a simple Fantom API wrapper for the
+[Mailgun]`https://http://www.mailgun.com` email service.
+
+Usage [#usage]
+**************
+
+  mailgun := Mailgun
+  {
+    it.apiKey = "key-3ax6xnjp29jd6fds4gc373sgvjxteol0"
+    it.domain = "samples.mailgun.org"
+  }
+
+Sending [#sending]
+==================
+
+See full [send documentation]`mailgun::Mailgun.send`.
+
+  mailgun.send([
+    "from": "me@samples.mailgun.org",
+    "to": "alex@mailgun.net, ev@mailgun.net",
+    "subject": "Hey There!",
+    "text": "Hi :)"
+  ])
+
+Or use an [Email]`http://fantom.org/doc/email/Email.html` instance:
+
+  email := Email
+  {
+    from = "me@samples.mailgun.org"
+    to = ["alex@mailgun.net, ev@mailgun.net"]
+    subject = "Hey There!"
+    body = TextPart { text = "Hi :)" }
+  }
+  mailgun.sendEmail(email)
+
+Logs [#logs]
+============
+
+See full [log documentation]`mailgun::Mailgun.log`.
+
+  logs := mailgun.log

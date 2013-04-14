@@ -1,0 +1,7 @@
+syntax glob
+
+fan.props
+test.fan
+.DS_Store
+doc/
+lib/
