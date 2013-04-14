@@ -16,12 +16,3 @@ Fantom wrapper for [Mailgun](https://http://www.mailgun.com) email service.
       "subject": "Hey There!",
       "text": "Hi :)"
     ])
-
-    mailgun.sendEmail(Email
-    {
-      to = ["alex@mailgun.net, ev@mailgun.net"]
-      subject = "Hey There!"
-      body = TextPart { text = "Hi :)" }
-    })
-
-    logs := mailgun.log
