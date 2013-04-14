@@ -15,6 +15,11 @@ using web
 **
 const class Mailgun
 {
+
+//////////////////////////////////////////////////////////////////////////
+// Construction
+//////////////////////////////////////////////////////////////////////////
+
   ** Constructor.
   new make(|This|? f := null)
   {
@@ -22,6 +27,7 @@ const class Mailgun
     this.apiBase = `https://api.mailgun.net/v2/$domain`
     this.apiSend = `$apiBase/messages`
     this.apiLog  = `$apiBase/log`
+    this.apiUnsubscribes = `$apiBase/unsubscribes`
   }
 
   ** API key for your Mailgun account.
@@ -33,6 +39,10 @@ const class Mailgun
   ** Optional default address to use for 'From' header if
   ** not specified in `send` or `sendEmail`.
   const Str? from
+
+//////////////////////////////////////////////////////////////////////////
+// Sending
+//////////////////////////////////////////////////////////////////////////
 
   **
   ** Send message using given params. See Mailgun documentation
@@ -65,7 +75,7 @@ const class Mailgun
       c.postForm(params)
 
       // check response
-      map := toFan(JsonInStream(c.resStr.in).readJson)
+      map := fromMap(JsonInStream(c.resStr.in).readJson)
       if (c.resCode != 200) throw Err(map["message"] ?: "")
 
       // looks good
@@ -108,6 +118,139 @@ const class Mailgun
     send(params)
   }
 
+//////////////////////////////////////////////////////////////////////////
+// Unsubscribes
+//////////////////////////////////////////////////////////////////////////
+
+  **
+  ** Get list of unsubscribes.
+  **  - limit: Max number of records to return, or null for Mailgun default
+  **  - skip:  Number of records to skip, or null for Mailgun default
+  **
+  ** See Mailgun documentation for unsubscribes:
+  **
+  ** `http://documentation.mailgun.net/api-unsubscribes.html`
+  **
+  [Str:Obj][] unsubscribes(Int? limit := null, Int? skip := null)
+  {
+    params := Str:Str[:]
+    if (limit != null) params["limit"] = limit.toStr
+    if (skip  != null) params["skip"] = skip.toStr
+
+    WebClient? c
+    try
+    {
+      // post msg
+      c = client(apiUnsubscribes.plusQuery(params))
+      res := c.getStr
+
+      // check response
+      if (c.resCode != 200)
+      {
+        map := fromMap(JsonInStream(res.in).readJson)
+        throw Err(map["message"] ?: "")
+      }
+
+      // parse resp
+      c.close
+      return fromList(JsonInStream(res.in).readJson)
+    }
+    finally c?.close
+  }
+
+  **
+  ** Get a single unsubscribe record.
+  **
+  ** See Mailgun documentation for unsubscribes:
+  **
+  ** `http://documentation.mailgun.net/api-unsubscribes.html`
+  **
+  [Str:Obj][] getUnsubscribe(Str address)
+  {
+    WebClient? c
+    try
+    {
+      // post msg
+      c = client(`$apiUnsubscribes/$address`)
+      res := c.getStr
+
+      // check response
+      if (c.resCode != 200)
+      {
+        map := fromMap(JsonInStream(res.in).readJson)
+        throw Err(map["message"] ?: "")
+      }
+
+      // parse resp
+      c.close
+      return fromList(JsonInStream(res.in).readJson)
+    }
+    finally c?.close
+  }
+
+  **
+  ** Add address to unsubscribe table.
+  **
+  ** See Mailgun documentation for unsubscribes:
+  **
+  ** `http://documentation.mailgun.net/api-unsubscribes.html`
+  **
+  Str:Obj addUnsubscribe(Str address, Str tag := "*")
+  {
+    WebClient? c
+    try
+    {
+      // post msg
+      c = client(apiUnsubscribes)
+      c.postForm([
+        "address": address,
+        "tag": tag
+      ])
+
+      // check response
+      map := fromMap(JsonInStream(c.resStr.in).readJson)
+      if (c.resCode != 200) throw Err(map["message"] ?: "")
+
+      // parse resp
+      c.close
+      return map
+    }
+    finally c?.close
+  }
+
+  **
+  ** Remove an address from unsubscribe table.
+  **
+  ** See Mailgun documentation for unsubscribes:
+  **
+  ** `http://documentation.mailgun.net/api-unsubscribes.html`
+  **
+  Str:Obj removeUnsubscribe(Str addressOrId)
+  {
+    WebClient? c
+    try
+    {
+      // post msg
+      c = client(`$apiUnsubscribes/$addressOrId`)
+      c.reqMethod = "DELETE"
+      c.writeReq
+      c.readRes
+
+      // check response
+      map := fromMap(JsonInStream(c.resStr.in).readJson)
+      if (c.resCode != 200) throw Err(map["message"] ?: "")
+
+      // parse resp
+      c.close
+      return map
+    }
+    finally c?.close
+  }
+
+//////////////////////////////////////////////////////////////////////////
+// Logs
+//////////////////////////////////////////////////////////////////////////
+
   **
   ** Get log entries for this Mailgun account.
   **  - limit: Max number of records to return, or null for Mailgun default
@@ -133,18 +276,20 @@ const class Mailgun
       // check response
       if (c.resCode != 200)
       {
-        map := toFan(JsonInStream(res.in).readJson)
+        map := fromMap(JsonInStream(res.in).readJson)
         throw Err(map["message"] ?: "")
       }
 
       // parse resp
       c.close
-      top   := (Str:Obj)JsonInStream(res.in).readJson
-      items := (Obj[])top["items"]
-      return items.map |v| { toFan(v) }
+      return fromList(JsonInStream(res.in).readJson)
     }
     finally c?.close
   }
+
+//////////////////////////////////////////////////////////////////////////
+// Support
+//////////////////////////////////////////////////////////////////////////
 
   ** Get an authentication WebClient instance.
   private WebClient client(Uri uri)
@@ -154,16 +299,24 @@ const class Mailgun
     return c
   }
 
+  ** Convert list of JSON maps to Fantom types.
+  private [Str:Obj][] fromList(Str:Obj json)
+  {
+    items := (Obj[])json["items"]
+    return items.map |v| { fromMap(v) }
+  }
+
   ** Convert JSON map to Fantom types.
-  private Str:Obj toFan(Str:Obj json)
+  private Str:Obj fromMap(Str:Obj json)
   {
     json.map |val, key|
     {
-      DateTime.fromHttpStr(val, false) ?: val
+      DateTime.fromHttpStr(val as Str ?: "", false) ?: val
     }
   }
 
   private const Uri apiBase
   private const Uri apiSend
   private const Uri apiLog
+  private const Uri apiUnsubscribes
 }
