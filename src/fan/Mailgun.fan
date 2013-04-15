@@ -28,6 +28,7 @@ const class Mailgun
     this.apiSend = `$apiBase/messages`
     this.apiLog  = `$apiBase/log`
     this.apiUnsubscribes = `$apiBase/unsubscribes`
+    this.apiBounces = `$apiBase/bounces`
   }
 
   ** API key for your Mailgun account.
@@ -117,10 +118,10 @@ const class Mailgun
   **
   [Str:Obj][] unsubscribes(Int? limit := null, Int? skip := null)
   {
-    params := Str:Str[:]
-    if (limit != null) params["limit"] = limit.toStr
-    if (skip  != null) params["skip"] = skip.toStr
-    return invoke("GET", apiUnsubscribes, params)
+    invoke("GET", apiUnsubscribes, Str:Str[:] {
+      if (limit != null) it["limit"] = limit.toStr
+      if (skip  != null) it["skip"] = skip.toStr
+    })
   }
 
   **
@@ -163,6 +164,70 @@ const class Mailgun
   }
 
 //////////////////////////////////////////////////////////////////////////
+// Bounces
+//////////////////////////////////////////////////////////////////////////
+
+  **
+  ** Get list of bounces.
+  **  - limit: Max number of records to return, or null for Mailgun default
+  **  - skip:  Number of records to skip, or null for Mailgun default
+  **
+  ** See Mailgun documentation for bounces:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  [Str:Obj][] bounces(Int? limit := null, Int? skip := null)
+  {
+    invoke("GET", apiBounces, Str:Str[:] {
+      if (limit != null) it["limit"] = limit.toStr
+      if (skip  != null) it["skip"] = skip.toStr
+    })
+  }
+
+  **
+  ** Get a single bounce event by email address. Returns response from
+  ** Mailgun if successful. Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for bounces:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  Str:Obj getBounce(Str address)
+  {
+    invoke("GET", `$apiBounces/$address`)
+  }
+
+  **
+  ** Adds a permanent bounce to bounce table. Updates existing recored
+  ** if already there. Returns response from Mailgun if successful.
+  ** Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for bounces:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  Str:Obj addBounce(Str address, Int? errCode := null, Str? errMsg := null)
+  {
+    invoke("POST", apiBounces, Str:Str["address":address] {
+      if (errCode != null) it["code"] = errCode.toStr
+      if (errMsg  != null) it["error"] = errMsg.toStr
+    })
+  }
+
+  **
+  ** Remove a bounce event.  Returns response from Mailgun if
+  ** successful. Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for bounces:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  Str:Obj removeBounce(Str addressOrId)
+  {
+    invoke("DELETE", `$apiBounces/$addressOrId`)
+  }
+
+//////////////////////////////////////////////////////////////////////////
 // Logs
 //////////////////////////////////////////////////////////////////////////
 
@@ -177,10 +242,10 @@ const class Mailgun
   **
   [Str:Obj][] log(Int? limit := null, Int? skip := null)
   {
-    params := Str:Str[:]
-    if (limit != null) params["limit"] = limit.toStr
-    if (skip  != null) params["skip"] = skip.toStr
-    return invoke("GET", apiLog, params)
+    invoke("GET", apiLog, Str:Str[:] {
+      if (limit != null) it["limit"] = limit.toStr
+      if (skip  != null) it["skip"] = skip.toStr
+    })
   }
 
 //////////////////////////////////////////////////////////////////////////
@@ -203,10 +268,18 @@ const class Mailgun
       [Str:Obj]? res
       switch (method)
       {
-        case "GET":    res = parseJson(c.getStr)
-        case "DELETE": c.reqMethod="DELETE"; c.writeReq; c.readRes; res=parseJson(c.resStr)
-        case "POST":   c.postForm(params); res=parseJson(c.resStr)
-        default: throw ArgErr("Unsupported method $method")
+        case "GET":     // fall
+        case "DELETE":
+          c.reqMethod = method
+          c.writeReq
+          c.readRes
+          res = parseJson(c.resStr)
+
+        case "POST":
+          c.postForm(params); res=parseJson(c.resStr)
+
+        default:
+          throw ArgErr("Unsupported method $method")
       }
 
       // check response
@@ -233,4 +306,5 @@ const class Mailgun
   private const Uri apiSend
   private const Uri apiLog
   private const Uri apiUnsubscribes
+  private const Uri apiBounces
 }
