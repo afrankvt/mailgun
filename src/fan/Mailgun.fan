@@ -24,11 +24,14 @@ const class Mailgun
   new make(|This|? f := null)
   {
     if (f != null) f(this)
-    this.apiBase = `https://api.mailgun.net/v2/$domain`
-    this.apiSend = `$apiBase/messages`
-    this.apiLog  = `$apiBase/log`
+    this.apiBase    = `https://api.mailgun.net/v2/$domain`
+    this.apiSend    = `$apiBase/messages`
+    this.apiLog     = `$apiBase/log`
     this.apiUnsubscribes = `$apiBase/unsubscribes`
+    this.apiComplaints   = `$apiBase/complaints`
     this.apiBounces = `$apiBase/bounces`
+    this.apiStats   = `$apiBase/stats`
+    this.apiTags    = `$apiBase/tags`
   }
 
   ** API key for your Mailgun account.
@@ -164,6 +167,66 @@ const class Mailgun
   }
 
 //////////////////////////////////////////////////////////////////////////
+// Spam Complaints
+//////////////////////////////////////////////////////////////////////////
+
+  **
+  ** Get list of spam complaints.
+  **  - limit: Max number of records to return, or null for Mailgun default
+  **  - skip:  Number of records to skip, or null for Mailgun default
+  **
+  ** See Mailgun documentation for complaints:
+  **
+  ** `http://documentation.mailgun.net/api-complaints.html`
+  **
+  [Str:Obj][] complaints(Int? limit := null, Int? skip := null)
+  {
+    invoke("GET", apiComplaints, Str:Str[:] {
+      if (limit != null) it["limit"] = limit.toStr
+      if (skip  != null) it["skip"] = skip.toStr
+    })
+  }
+
+  **
+  ** Get a single spam complaint by email address. Returns response from
+  ** Mailgun if successful. Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for complaints:
+  **
+  ** `http://documentation.mailgun.net/api-complaints.html`
+  **
+  Str:Obj getComplaint(Str address)
+  {
+    invoke("GET", `$apiComplaints/$address`)
+  }
+
+  **
+  ** Adds an address to complaints table. Returns response from Mailgun
+  ** if successful. Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for complaints:
+  **
+  ** `http://documentation.mailgun.net/api-complaints.html`
+  **
+  Str:Obj addComplaint(Str address)
+  {
+    invoke("POST", apiComplaints, ["address":address])
+  }
+
+  **
+  ** Remove a given spam complaint. Returns response from Mailgun if
+  ** successful. Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for complaints:
+  **
+  ** `http://documentation.mailgun.net/api-complaints.html`
+  **
+  Str:Obj removeComplaint(Str addressOrId)
+  {
+    invoke("DELETE", `$apiComplaints/$addressOrId`)
+  }
+
+//////////////////////////////////////////////////////////////////////////
 // Bounces
 //////////////////////////////////////////////////////////////////////////
 
@@ -225,6 +288,50 @@ const class Mailgun
   Str:Obj removeBounce(Str addressOrId)
   {
     invoke("DELETE", `$apiBounces/$addressOrId`)
+  }
+
+//////////////////////////////////////////////////////////////////////////
+// Stats
+//////////////////////////////////////////////////////////////////////////
+
+  **
+  ** Get list of event stat items.  Each record counts for one
+  ** event per one day. Throws Err if fails for any reason.
+  **
+  ** Available event names:
+  **  - sent
+  **  - delivered
+  **  - bounced
+  **  - dropped
+  **  - complained
+  **  - unsubscribed
+  **  - opened
+  **  - clicked
+  **
+  ** See Mailgun documentation for stats:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  [Str:Obj][] stats(Str event, Date? start := null, Int? limit := null, Int? skip := null)
+  {
+    invoke("GET", apiStats, Str:Str["event":event] {
+      if (start != null) it["start-date"] = start.toLocale("YYYY-MM-DD")
+      if (limit != null) it["limit"] = limit.toStr
+      if (skip  != null) it["skip"] = skip.toStr
+    })
+  }
+
+  **
+  ** Deletes all counters for given tag.  Returns response from
+  ** Mailgun.  Throws Err if fails for any reason.
+  **
+  ** See Mailgun documentation for stats:
+  **
+  ** `http://documentation.mailgun.net/api-bounces.html`
+  **
+  Str:Obj removeTag(Str tag)
+  {
+    invoke("DELETE", `$apiTags/$tag`)
   }
 
 //////////////////////////////////////////////////////////////////////////
@@ -306,5 +413,8 @@ const class Mailgun
   private const Uri apiSend
   private const Uri apiLog
   private const Uri apiUnsubscribes
+  private const Uri apiComplaints
   private const Uri apiBounces
+  private const Uri apiStats
+  private const Uri apiTags
 }
