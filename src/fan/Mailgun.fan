@@ -65,28 +65,12 @@ const class Mailgun
   Str:Obj send(Str:Obj params)
   {
     // default 'from' if not specified
-    if (!params.containsKey("from")) params["from"] = from
-
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(apiSend)
-      c.postForm(params)
-
-      // check response
-      map := fromMap(JsonInStream(c.resStr.in).readJson)
-      if (c.resCode != 200) throw Err(map["message"] ?: "")
-
-      // looks good
-      c.close
-      return map
-    }
-    finally c?.close
+    if (!params.containsKey("from") && from != null) params["from"] = from
+    return invoke("POST", apiSend, params)
   }
 
   ** Convenience to use an [Email]`email::Email` instance for `send`.
-  Void sendEmail(Email email)
+  Str:Obj sendEmail(Email email)
   {
     params := Str:Obj[:]
 
@@ -115,7 +99,7 @@ const class Mailgun
       // TODO FIXTI: FilePart
     }
 
-    send(params)
+    return send(params)
   }
 
 //////////////////////////////////////////////////////////////////////////
@@ -136,26 +120,7 @@ const class Mailgun
     params := Str:Str[:]
     if (limit != null) params["limit"] = limit.toStr
     if (skip  != null) params["skip"] = skip.toStr
-
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(apiUnsubscribes.plusQuery(params))
-      res := c.getStr
-
-      // check response
-      if (c.resCode != 200)
-      {
-        map := fromMap(JsonInStream(res.in).readJson)
-        throw Err(map["message"] ?: "")
-      }
-
-      // parse resp
-      c.close
-      return fromList(JsonInStream(res.in).readJson)
-    }
-    finally c?.close
+    return invoke("GET", apiUnsubscribes, params)
   }
 
   **
@@ -168,25 +133,7 @@ const class Mailgun
   **
   [Str:Obj][] getUnsubscribe(Str address)
   {
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(`$apiUnsubscribes/$address`)
-      res := c.getStr
-
-      // check response
-      if (c.resCode != 200)
-      {
-        map := fromMap(JsonInStream(res.in).readJson)
-        throw Err(map["message"] ?: "")
-      }
-
-      // parse resp
-      c.close
-      return fromList(JsonInStream(res.in).readJson)
-    }
-    finally c?.close
+    invoke("GET", `$apiUnsubscribes/$address`)
   }
 
   **
@@ -199,25 +146,7 @@ const class Mailgun
   **
   Str:Obj addUnsubscribe(Str address, Str tag := "*")
   {
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(apiUnsubscribes)
-      c.postForm([
-        "address": address,
-        "tag": tag
-      ])
-
-      // check response
-      map := fromMap(JsonInStream(c.resStr.in).readJson)
-      if (c.resCode != 200) throw Err(map["message"] ?: "")
-
-      // parse resp
-      c.close
-      return map
-    }
-    finally c?.close
+    invoke("POST", apiUnsubscribes, ["address":address, "tag":tag])
   }
 
   **
@@ -230,24 +159,7 @@ const class Mailgun
   **
   Str:Obj removeUnsubscribe(Str addressOrId)
   {
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(`$apiUnsubscribes/$addressOrId`)
-      c.reqMethod = "DELETE"
-      c.writeReq
-      c.readRes
-
-      // check response
-      map := fromMap(JsonInStream(c.resStr.in).readJson)
-      if (c.resCode != 200) throw Err(map["message"] ?: "")
-
-      // parse resp
-      c.close
-      return map
-    }
-    finally c?.close
+    invoke("DELETE", `$apiUnsubscribes/$addressOrId`)
   }
 
 //////////////////////////////////////////////////////////////////////////
@@ -268,54 +180,53 @@ const class Mailgun
     params := Str:Str[:]
     if (limit != null) params["limit"] = limit.toStr
     if (skip  != null) params["skip"] = skip.toStr
-
-    WebClient? c
-    try
-    {
-      // post msg
-      c = client(apiLog.plusQuery(params))
-      res := c.getStr
-
-      // check response
-      if (c.resCode != 200)
-      {
-        map := fromMap(JsonInStream(res.in).readJson)
-        throw Err(map["message"] ?: "")
-      }
-
-      // parse resp
-      c.close
-      return fromList(JsonInStream(res.in).readJson)
-    }
-    finally c?.close
+    return invoke("GET", apiLog, params)
   }
 
 //////////////////////////////////////////////////////////////////////////
 // Support
 //////////////////////////////////////////////////////////////////////////
 
-  ** Get an authentication WebClient instance.
-  private WebClient client(Uri uri)
+  ** Invoke a REST callback with given arguments.
+  private Obj invoke(Str method, Uri uri, [Str:Str]? params := null)
   {
-    c := WebClient(uri)
-    c.reqHeaders["Authorization"] = "Basic " + "api:$apiKey".toBuf.toBase64
-    return c
+    WebClient? c
+    try
+    {
+      if (method == "GET" && params != null) uri = uri.plusQuery(params)
+
+      // init client
+      c = WebClient(uri)
+      c.reqHeaders["Authorization"] = "Basic " + "api:$apiKey".toBuf.toBase64
+
+      // send/rec
+      [Str:Obj]? res
+      switch (method)
+      {
+        case "GET":    res = parseJson(c.getStr)
+        case "DELETE": c.reqMethod="DELETE"; c.writeReq; c.readRes; res=parseJson(c.resStr)
+        case "POST":   c.postForm(params); res=parseJson(c.resStr)
+        default: throw ArgErr("Unsupported method $method")
+      }
+
+      // check response
+      if (c.resCode != 200) throw Err(res["message"] ?: "")
+
+      // return results
+      return res.containsKey("items")
+        ? ((Obj[])res["items"]).map |v| { toMap(v) }
+        : toMap(res)
+    }
+    finally c?.close
   }
 
-  ** Convert list of JSON maps to Fantom types.
-  private [Str:Obj][] fromList(Str:Obj json)
-  {
-    items := (Obj[])json["items"]
-    return items.map |v| { fromMap(v) }
-  }
+  ** Parse JSON response.
+  private Str:Obj parseJson(Str res) { JsonInStream(res.in).readJson }
 
   ** Convert JSON map to Fantom types.
-  private Str:Obj fromMap(Str:Obj json)
+  private Str:Obj toMap(Str:Obj json)
   {
-    json.map |val, key|
-    {
-      DateTime.fromHttpStr(val as Str ?: "", false) ?: val
-    }
+    json.map |v| { DateTime.fromHttpStr(v as Str ?: "", false) ?: v }
   }
 
   private const Uri apiBase
