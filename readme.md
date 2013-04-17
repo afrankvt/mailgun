@@ -1,6 +1,6 @@
 # Mailgun
 
-Fantom wrapper for [Mailgun](https://http://www.mailgun.com) email service.
+Fantom wrapper for [Mailgun](http://www.mailgun.com) email service.
 
 ## Usage
 
@@ -16,3 +16,14 @@ Fantom wrapper for [Mailgun](https://http://www.mailgun.com) email service.
       "subject": "Hey There!",
       "text": "Hi :)"
     ])
+
+
+## Install
+
+    fanr install -r http://repo.status302.com/fanr/ mailgun
+
+## Documentation
+
+Full API documentation:
+
+[http://repo.status302.com/doc/mailgun/](http://repo.status302.com/doc/mailgun/)
