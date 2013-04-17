@@ -17,8 +17,9 @@ class Build : BuildPod
   new make()
   {
     podName = "mailgun"
-    summary = "Mailgun API"
+    summary = "Mailgun"
     version = Version("1.0")
+    meta = ["vcs.uri" : "https://bitbucket.org/afrankvt/mailgun/", "license.name":"MIT"]
     depends = ["sys 1.0",
                "util 1.0",
                "concurrent 1.0",

@@ -44,9 +44,65 @@ Or use an [Email]`http://fantom.org/doc/email/Email.html` instance:
   }
   mailgun.sendEmail(email)
 
+
+Unsubscribes [#unsubscribes]
+============================
+
+See full [documentation]`mailgun::Mailgun`.
+
+  mailgun.unsubscribe                            // get unsubscribe table
+  mailgun.addUnsubscribe("alex@mailgun.net")     // add address to unsub table
+  mailgun.getUnsubscribe("alex@mailgun.net")     // get all unsub entries for address
+  mailgun.removeUnsubscribe("alex@mailgun.net")  // remove all unsub entries for address
+
+  // add with tags
+  mailgun.addUnsubscribe("alex@mailgun.net", "someTag")
+
+
+Spam Complaints [#compliants]
+============================
+
+See full [documentation]`mailgun::Mailgun`.
+
+  mailgun.complaints                           // get complaints table
+  mailgun.addComplaint("alex@mailgun.net")     // add address to complaints table
+  mailgun.getComplaint("alex@mailgun.net")     // get complaints entry for address
+  mailgun.removeComplaint("alex@mailgun.net")  // remove address from complaints table
+
+
+Bounces [#bounces]
+============================
+
+See full [documentation]`mailgun::Mailgun`.
+
+  mailgun.bounces                           // get bounces table
+  mailgun.addBounce("alex@mailgun.net")     // add address to bounce table
+  mailgun.getBounce("alex@mailgun.net")     // get bounce entry for address
+  mailgun.removeBounce("alex@mailgun.net")  // remove address from bounce table
+
+  // add with specific error code and message
+  mailgun.addBounce("alex@mailgun.net", 551, "The recipient is not local to the server.")
+
+
 Logs [#logs]
 ============
 
 See full [log documentation]`mailgun::Mailgun.log`.
 
   logs := mailgun.log
+
+Everything Else [#everythingElse]
+=================================
+
+Not every API has first-class support yet.  And just in case Mailgun adds
+new APIs that are't yet implemented here, you can drop down and use the
+[invoke]`mailgun::Mailgun.invoke` method to directly access Mailgun's
+REST API:
+
+  // both lines are equivalent
+  mailgun.log(25)
+  mailgun.invoke("GET", `/log`, ["limit":"25"])
+
+The return type for 'invoke' will either be a 'Str:Obj' or it will be a
+'[Str:Obj][]' list.  Refert to the
+[Mailgun documentation]`http://documentation.mailgun.com/` on expected result.
