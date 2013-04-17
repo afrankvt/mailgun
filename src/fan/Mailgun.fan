@@ -24,14 +24,6 @@ const class Mailgun
   new make(|This|? f := null)
   {
     if (f != null) f(this)
-    this.apiBase    = `https://api.mailgun.net/v2/$domain`
-    this.apiSend    = `$apiBase/messages`
-    this.apiLog     = `$apiBase/log`
-    this.apiUnsubscribes = `$apiBase/unsubscribes`
-    this.apiComplaints   = `$apiBase/complaints`
-    this.apiBounces = `$apiBase/bounces`
-    this.apiStats   = `$apiBase/stats`
-    this.apiTags    = `$apiBase/tags`
   }
 
   ** API key for your Mailgun account.
@@ -359,16 +351,22 @@ const class Mailgun
 // Support
 //////////////////////////////////////////////////////////////////////////
 
-  ** Invoke a REST callback with given arguments.
-  private Obj invoke(Str method, Uri uri, [Str:Str]? params := null)
+  **
+  ** Invoke a REST API with given arguments. If method is "GET"
+  ** params sent in query string, otherse as request body.
+  **
+  **    invoke("GET", `/log`, ["limit":"25"])
+  **
+  Obj invoke(Str method, Uri uri, [Str:Str]? params := null)
   {
     WebClient? c
     try
     {
+      if (!uri.isRel && !uri.isPathAbs) throw ArgErr("Invalid URI")
       if (method == "GET" && params != null) uri = uri.plusQuery(params)
 
       // init client
-      c = WebClient(uri)
+      c = WebClient(`${apiBase}${domain}${uri}`)
       c.reqHeaders["Authorization"] = "Basic " + "api:$apiKey".toBuf.toBase64
 
       // send/rec
@@ -409,12 +407,12 @@ const class Mailgun
     json.map |v| { DateTime.fromHttpStr(v as Str ?: "", false) ?: v }
   }
 
-  private const Uri apiBase
-  private const Uri apiSend
-  private const Uri apiLog
-  private const Uri apiUnsubscribes
-  private const Uri apiComplaints
-  private const Uri apiBounces
-  private const Uri apiStats
-  private const Uri apiTags
+  private const Uri apiBase         := `https://api.mailgun.net/v2/`
+  private const Uri apiSend         := `/messages`
+  private const Uri apiLog          := `/log`
+  private const Uri apiUnsubscribes := `/unsubscribes`
+  private const Uri apiComplaints   := `/complaints`
+  private const Uri apiBounces      := `/bounces`
+  private const Uri apiStats        := `/stats`
+  private const Uri apiTags         := `/tags`
 }
