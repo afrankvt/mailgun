@@ -10,7 +10,7 @@ Overview [#overview]
 ********************
 
 Mailgun is a simple Fantom API wrapper for the
-[Mailgun]`https://http://www.mailgun.com` email service.
+[Mailgun]`https://www.mailgun.com` email service.
 
 Usage [#usage]
 **************
