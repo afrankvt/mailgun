@@ -17,7 +17,8 @@ Usage [#usage]
 
   mailgun := Mailgun
   {
-    it.apiKey = "key-3ax6xnjp29jd6fds4gc373sgvjxteol0"
+    it.privApiKey = "key-3ax6xnjp29jd6fds4gc373sgvjxteol0"
+    it.pubApiKey = "pubkey-aba038xlkaj444a898akjzlsoo"
     it.domain = "samples.mailgun.org"
   }
 
@@ -90,6 +91,15 @@ Logs [#logs]
 See full [log documentation]`mailgun::Mailgun.log`.
 
   logs := mailgun.log
+
+Email Validation [#validate]
+============================
+
+Email validation requires a 'pubApiKey' to be configured.
+See full [validation documentation]`mailgun::Mailgun.validateAddress`.
+
+  mailgun.isValidAddres("foo@acme.com")     // true or false
+  mailgun.validateAddress("foo@acme.com")   // get full Mailgun validation response as a map
 
 Everything Else [#everythingElse]
 =================================
