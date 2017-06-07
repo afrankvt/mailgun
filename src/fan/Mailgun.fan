@@ -26,8 +26,11 @@ const class Mailgun
     if (f != null) f(this)
   }
 
-  ** API key for your Mailgun account.
-  const Str apiKey
+  ** Private API key for your Mailgun account.
+  const Str privApiKey
+
+  ** Public API key for your Mailgun account.
+  const Str? pubApiKey
 
   ** Domain to use for your Mailgun account.
   const Str domain
@@ -348,6 +351,24 @@ const class Mailgun
   }
 
 //////////////////////////////////////////////////////////////////////////
+// Address
+//////////////////////////////////////////////////////////////////////////
+
+  ** Convenience to determine if an email address is valid or not
+  Bool isValidAddress(Str address)
+  {
+    validateAddress(address)["is_valid"]
+  }
+
+  ** Validate the email address using Mailgun's email validation service
+  [Str:Obj?] validateAddress(Str address)
+  {
+    if (pubApiKey == null) throw ArgErr("Must configure public api key to validate")
+    res := invoke("GET", `$apiAddress/validate`, ["address": address])
+    return res
+  }
+
+//////////////////////////////////////////////////////////////////////////
 // Support
 //////////////////////////////////////////////////////////////////////////
 
@@ -357,17 +378,29 @@ const class Mailgun
   **
   **    invoke("GET", `/log`, ["limit":"25"])
   **
-  Obj invoke(Str method, Uri uri, [Str:Str]? params := null)
+  Obj invoke(Str method, Uri endpoint, [Str:Str]? params := null)
   {
     WebClient? c
     try
     {
-      if (!uri.isRel && !uri.isPathAbs) throw ArgErr("Invalid URI")
+      if (!endpoint.isRel && !endpoint.isPathAbs) throw ArgErr("Invalid URI: $endpoint")
+
+      // Configure for public/private api.
+      dom := domain
+      key := privApiKey
+      if (isPubEndpoint(endpoint))
+      {
+        // Public API must not use domain
+        dom = "."
+        key = pubApiKey
+      }
+
+      uri := `${apiBase}${dom}${endpoint}`
       if (method == "GET" && params != null) uri = uri.plusQuery(params)
 
       // init client
-      c = WebClient(`${apiBase}${domain}${uri}`)
-      c.reqHeaders["Authorization"] = "Basic " + "api:$apiKey".toBuf.toBase64
+      c = WebClient(uri)
+      c.reqHeaders["Authorization"] = "Basic " + "api:$key".toBuf.toBase64
 
       // send/rec
       [Str:Obj]? res
@@ -402,12 +435,18 @@ const class Mailgun
   private Str:Obj parseJson(Str res) { JsonInStream(res.in).readJson }
 
   ** Convert JSON map to Fantom types.
-  private Str:Obj toMap(Str:Obj json)
+  private Str:Obj? toMap(Str:Obj? json)
   {
-    json.map |v| { DateTime.fromHttpStr(v as Str ?: "", false) ?: v }
+    return json.map |v->Obj?| { DateTime.fromHttpStr(v as Str ?: "", false) ?: v }
   }
 
-  private const Uri apiBase         := `https://api.mailgun.net/v2/`
+  ** Is the endpoint for the public API?
+  private Bool isPubEndpoint(Uri endpoint)
+  {
+    endpoint.pathStr.startsWith("$apiAddress")
+  }
+
+  private const Uri apiBase         := `https://api.mailgun.net/v3/`
   private const Uri apiSend         := `/messages`
   private const Uri apiLog          := `/log`
   private const Uri apiUnsubscribes := `/unsubscribes`
@@ -415,4 +454,5 @@ const class Mailgun
   private const Uri apiBounces      := `/bounces`
   private const Uri apiStats        := `/stats`
   private const Uri apiTags         := `/tags`
+  private const Uri apiAddress      := `/address`
 }
