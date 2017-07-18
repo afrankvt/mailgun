@@ -338,9 +338,9 @@ const class Mailgun
   **
   **  - filters: The set of filters to apply for retrieving events, or null
   **    for Mailgun default.
-  **  - begin: a `Date` or `DateTime` to start the filter from, or null for
+  **  - begin: a 'Date' or 'DateTime' to start the filter from, or null for
   **    Mailgun default.
-  **  - end: a `Date` or `DateTime` to filter up to, or null for Mailgun default.
+  **  - end: a 'Date' or 'DateTime' to filter up to, or null for Mailgun default.
   **  - limit: Max number of items to return, or null for Mailgun default.
   **
   ** See Mailgun documentation for events:

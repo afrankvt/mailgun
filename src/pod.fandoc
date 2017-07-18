@@ -74,7 +74,7 @@ See full [documentation]`mailgun::Mailgun`.
 Bounces [#bounces]
 ============================
 
-See full [documentation]`mailgun::Mailgun`.
+See full [documentation]`mailgun::Mailgun.events`.
 
   mailgun.bounces                           // get bounces table
   mailgun.addBounce("alex@mailgun.net")     // add address to bounce table
@@ -85,12 +85,19 @@ See full [documentation]`mailgun::Mailgun`.
   mailgun.addBounce("alex@mailgun.net", 551, "The recipient is not local to the server.")
 
 
-Logs [#logs]
-============
+Events [#events]
+================
 
-See full [log documentation]`mailgun::Mailgun.log`.
+See full [documentation]`mailgun::Mailgun.events`
 
-  logs := mailgun.log
+  mailgun.events(...)  // retrieve events for given params
+
+  // get list of all delivered events on the day of 2017-07-01
+  mailgun.events(["event":"delivered"], Date(2017-07-01), Date(2017-07-01))
+
+Note that events in particular may be paged.  See [Paging]`#paging` for more
+details on iterating paged results.
+
 
 Email Validation [#validate]
 ============================
@@ -100,6 +107,32 @@ See full [validation documentation]`mailgun::Mailgun.validateAddress`.
 
   mailgun.isValidAddres("foo@acme.com")     // true or false
   mailgun.validateAddress("foo@acme.com")   // get full Mailgun validation response as a map
+
+
+Paging [#paging]
+================
+Certain API calls return "pages" of results. For example, the [events]`#events`
+API works by returning pages of events. Paging information is only available
+in the first and last entry of the item list. You can page through results by
+passing either the first or last item to one of the following methods:
+
+  - [pageFirst]`mailgun::Mailgun.pageFirst`
+  - [pageNext]`mailgun::Mailgun.pageNext`
+  - [pagePrev]`mailgun::Mailgun.pagePrev`
+  - [pageLast]`mailgun::Mailgun.pageLast`
+
+Example:
+
+  // request the initial page of events
+  events := mailgun.events(["event":"delivered"], Date(2017-07-01), Date(2017-07-01))
+
+  // loop until current event list is empty
+  while (!events.isEmpty)
+  {
+    events.each |event| { ... }              // process event
+    events = mailgun.pageNext(events.last)   // retrieve next page
+  }
+
 
 Everything Else [#everythingElse]
 =================================
@@ -114,5 +147,5 @@ REST API:
   mailgun.invoke("GET", `/log`, ["limit":"25"])
 
 The return type for 'invoke' will either be a 'Str:Obj' or it will be a
-'[Str:Obj][]' list.  Refert to the
+'[Str:Obj][]' list.  Refer to the
 [Mailgun documentation]`http://documentation.mailgun.com/` on expected result.
