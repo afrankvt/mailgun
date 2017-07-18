@@ -20,10 +20,14 @@ Fantom wrapper for [Mailgun](http://www.mailgun.com) email service.
 
 ## Install
 
-    fanr install -r http://repo.status302.com/fanr/ mailgun
+    fanr install -r http://eggbox.fantomfactory.org/fanr/ mailgun
 
 ## Documentation
 
+Full Usage documentation:
+
+[http://eggbox.fantomfactory.org/pods/mailgun/doc/](http://eggbox.fantomfactory.org/pods/mailgun/doc/)
+
 Full API documentation:
 
-[http://repo.status302.com/doc/mailgun/](http://repo.status302.com/doc/mailgun/)
+[http://eggbox.fantomfactory.org/pods/mailgun/api/](http://eggbox.fantomfactory.org/pods/mailgun/api/)
