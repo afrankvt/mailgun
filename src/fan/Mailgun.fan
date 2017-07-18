@@ -330,6 +330,35 @@ const class Mailgun
   }
 
 //////////////////////////////////////////////////////////////////////////
+// Events
+//////////////////////////////////////////////////////////////////////////
+
+  **
+  ** Get events for this Mailgun account.
+  **
+  **  - filters: The set of filters to apply for retrieving events, or null
+  **    for Mailgun default.
+  **  - begin: a `Date` or `DateTime` to start the filter from, or null for
+  **    Mailgun default.
+  **  - end: a `Date` or `DateTime` to filter up to, or null for Mailgun default.
+  **  - limit: Max number of items to return, or null for Mailgun default.
+  **
+  ** See Mailgun documentation for events:
+  **
+  ** `https://documentation.mailgun.com/en/latest/api-events.html`
+  **
+  [Str:Obj][] events([Str:Str]? filters := null, Obj? begin := null, Obj? end := null, Int? limit := null)
+  {
+    params := Str:Str[:] {
+      if (begin != null)  it["begin"] = rfc2822(begin)
+      if (end != null)    it["end"] = rfc2822(end)
+      if (limit != null)  it["limit"] = limit.toStr
+    }
+    filters?.each |v, k| { params[k] = v }
+    return invoke("GET", apiEvents, params)
+  }
+
+//////////////////////////////////////////////////////////////////////////
 // Logs
 //////////////////////////////////////////////////////////////////////////
 
@@ -342,6 +371,7 @@ const class Mailgun
   **
   ** `http://documentation.mailgun.net/api-logs.html`
   **
+  @Deprecated { msg = "Use the events api instead" }
   [Str:Obj][] log(Int? limit := null, Int? skip := null)
   {
     invoke("GET", apiLog, Str:Str[:] {
@@ -369,6 +399,38 @@ const class Mailgun
   }
 
 //////////////////////////////////////////////////////////////////////////
+// Paging
+//////////////////////////////////////////////////////////////////////////
+
+  ** Get the first page items. See `invoke` for details.
+  [Str:Obj][] pageFirst(Str:Obj item)
+  {
+    uri := item["_paging"]?->get("first")
+    return uri == null ? [,] : invoke("GET", uri)
+  }
+
+  ** Get the next page of items. See `invoke` for details.
+  [Str:Obj][] pageNext(Str:Obj item)
+  {
+    uri := item["_paging"]?->get("next")
+    return uri == null ? [,] : invoke("GET", uri)
+  }
+
+  ** Get the previous page of items. See `invoke` for details.
+  [Str:Obj][] pagePrev(Str:Obj item)
+  {
+    uri := item["_paging"]?->get("previous")
+    return uri == null ? [,] : invoke("GET", uri)
+  }
+
+  ** Get the last page items. See `invoke` for details.
+  [Str:Obj][] pageLast(Str:Obj item)
+  {
+    uri := item["_paging"]?->get("last")
+    return uri == null ? [,] : invoke("GET", uri)
+  }
+
+//////////////////////////////////////////////////////////////////////////
 // Support
 //////////////////////////////////////////////////////////////////////////
 
@@ -378,12 +440,16 @@ const class Mailgun
   **
   **    invoke("GET", `/log`, ["limit":"25"])
   **
+  ** API calls that return a list of items will include paging
+  ** information in the first and last item. You can pass those items
+  ** to the various paging methods to retrieve more items.
+  **
   Obj invoke(Str method, Uri endpoint, [Str:Str]? params := null)
   {
     WebClient? c
     try
     {
-      if (!endpoint.isRel && !endpoint.isPathAbs) throw ArgErr("Invalid URI: $endpoint")
+      if (!endpoint.isPathAbs) throw ArgErr("Invalid URI: $endpoint")
 
       // Configure for public/private api.
       dom := domain
@@ -395,7 +461,7 @@ const class Mailgun
         key = pubApiKey
       }
 
-      uri := `${apiBase}${dom}${endpoint}`
+      uri := endpoint.isAbs ? endpoint : `${apiBase}${dom}${endpoint}`
       if (method == "GET" && params != null) uri = uri.plusQuery(params)
 
       // init client
@@ -424,9 +490,21 @@ const class Mailgun
       if (c.resCode != 200) throw Err(res["message"] ?: "")
 
       // return results
-      return res.containsKey("items")
-        ? ((Obj[])res["items"]).map |v| { toMap(v) }
-        : toMap(res)
+      if (res.containsKey("items"))
+      {
+        [Str:Obj][] items := ((Obj[])res["items"]).map |v| { toMap(v) }
+        // add paging info
+        if (!items.isEmpty && res.containsKey("paging"))
+        {
+          // swizzle key to protect against key collision since we have
+          // to inject the paging information into the first and last items
+          paging := ((Map)res["paging"]).map |v| { Uri.fromStr(v) }
+          items.first["_paging"] = paging
+          items.last["_paging"]  = paging
+        }
+        return items
+      }
+      else return toMap(res)
     }
     finally c?.close
   }
@@ -446,8 +524,20 @@ const class Mailgun
     endpoint.pathStr.startsWith("$apiAddress")
   }
 
+  ** Get the RFC-2822 encoding of a timestamp. Obj may be a Date (assumed midnight)
+  ** or a DateTime. If null, the get the encoding for [now]`DateTime.now`
+  private Str rfc2822(Obj? obj)
+  {
+    ts := DateTime.now
+    if (obj is Date) ts = ((Date)obj).midnight
+    else if (obj is DateTime) ts = (DateTime)ts
+    else if (obj != null) throw ArgErr("Cannot encode ${obj}: ($obj.typeof)")
+    return ts.toLocale("WWW, D MMM YYYY hh:mm:ss zzz", Locale.en)
+  }
+
   private const Uri apiBase         := `https://api.mailgun.net/v3/`
   private const Uri apiSend         := `/messages`
+  private const Uri apiEvents       := `/events`
   private const Uri apiLog          := `/log`
   private const Uri apiUnsubscribes := `/unsubscribes`
   private const Uri apiComplaints   := `/complaints`
