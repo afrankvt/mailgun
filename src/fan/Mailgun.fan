@@ -59,8 +59,6 @@ const class Mailgun
   **  Returns response from Mailgun if successful.  Throws Err
   **  if fails for any reason.
   **
-  **  Note: file attachments are not yet supported.
-  **
   Str:Obj send(Str:Obj params)
   {
     // default 'from' if not specified
@@ -81,6 +79,7 @@ const class Mailgun
 
     // subject
     params["subject"] = email.subject
+    attach := File[,]
 
     // body
     parts := EmailPart[,]
@@ -95,8 +94,13 @@ const class Mailgun
         html := p.headers.any |v| { v.contains("text/html") }
         params[html ? "html" : "text"] = tp.text
       }
-      // TODO FIXTI: FilePart
+      else if (p is FilePart)
+      {
+        fp := (FilePart)p
+        attach.add(fp.file)
+      }
     }
+    if (!attach.isEmpty) params["attachment"] = attach
 
     return send(params)
   }
@@ -444,7 +448,7 @@ const class Mailgun
   ** information in the first and last item. You can pass those items
   ** to the various paging methods to retrieve more items.
   **
-  Obj invoke(Str method, Uri endpoint, [Str:Str]? params := null)
+  Obj invoke(Str method, Uri endpoint, [Str:Obj]? params := null)
   {
     WebClient? c
     try
@@ -480,7 +484,9 @@ const class Mailgun
           res = parseJson(c.resStr)
 
         case "POST":
-          c.postForm(params); res=parseJson(c.resStr)
+          if (params.containsKey("attachment")) postMultiPart(c, params)
+          else c.postForm(params)
+          res = parseJson(c.resStr)
 
         default:
           throw ArgErr("Unsupported method $method")
@@ -509,6 +515,54 @@ const class Mailgun
     finally c?.close
   }
 
+  ** Post attachements using multipart/form-data
+  private Void postMultiPart(WebClient c, [Str:Obj] params)
+  {
+    boundary := "FanMailgun${Random.makeSeeded().nextBuf(8).toHex}"
+    c.reqMethod = "POST"
+    c.reqHeaders["Content-Type"] = "multipart/form-data; boundary=${boundary}"
+    c.writeReq
+    params.each |val, param|
+    {
+      c.reqOut.print("--${boundary}").print(CRLF)
+      if (val is List)
+      {
+        files := (File[])val
+        files.each |f| { writePart(c.reqOut, param, f) }
+      }
+      else writePart(c.reqOut, param, val)
+    }
+    c.reqOut.print("--${boundary}--").print(CRLF).flush.close
+    c.readRes
+  }
+
+  ** Utility to write a single part of multipart/form-data
+  private static Void writePart(OutStream out, Str name, Obj val)
+  {
+    h  := [Str:Str][:]
+    cd := "form-data; name=${name.toCode}"
+    if (val is File)
+    {
+      f := (File)val
+      cd = "$cd; filename=${f.name.toCode}"
+      h["Content-Type"] = f.mimeType.toStr
+      h["Content-Transfer-Encoding"] = "base64"
+      in := f.in
+      try
+      {
+        b64 := Buf()
+        FilePart.encodeBase64(in, f.size, b64.out)
+        val = b64.flip.readAllStr
+      }
+      finally
+        in.close
+    }
+    h["Content-Disposition"] = cd
+    WebUtil.writeHeaders(out, h)
+    out.print(CRLF)
+    out.print(val.toStr).print(CRLF)
+  }
+
   ** Parse JSON response.
   private Str:Obj parseJson(Str res) { JsonInStream(res.in).readJson }
 
@@ -535,6 +589,7 @@ const class Mailgun
     return ts.toLocale("WWW, D MMM YYYY hh:mm:ss zzz", Locale.en)
   }
 
+  private static const Str CRLF     := "\r\n"
   private const Uri apiBase         := `https://api.mailgun.net/v3/`
   private const Uri apiSend         := `/messages`
   private const Uri apiEvents       := `/events`
