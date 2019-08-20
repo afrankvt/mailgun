@@ -1,6 +1,6 @@
 # Mailgun
 
-Fantom wrapper for [Mailgun](http://www.mailgun.com) email service.
+Fantom API for [Mailgun](http://www.mailgun.com) email service.
 
 ## Usage
 
