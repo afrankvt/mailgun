@@ -18,7 +18,7 @@ class Build : BuildPod
   {
     podName = "mailgun"
     summary = "Mailgun"
-    version = Version("1.0.3")
+    version = Version("1.1")
     meta = ["vcs.uri" : "https://bitbucket.org/afrankvt/mailgun/",
             "license.name": "MIT",
             "repo.public": "true"]
